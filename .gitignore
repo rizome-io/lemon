@@ -1,0 +1,13 @@
+.DS_Store
+.idea
+*.log
+tmp/
+
+node_modules/
+npm-debug.log*
+*.tsbuildinfo
+.npm
+.eslintcache
+
+.parcel-cache
+dist

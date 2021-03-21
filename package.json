@@ -1,0 +1,32 @@
+{
+  "name": "lemon",
+  "version": "0.0.1",
+  "description": "prometheus proxy",
+  "main": "dist/lemon.js",
+  "scripts": {
+    "build": "parcel build --no-scope-hoist index.js",
+    "develop": "nodemon",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "targets": {
+    "main": {
+      "context": "node",
+      "engines": {
+        "node": ">=10.x"
+      },
+      "includeNodeModules": true
+    }
+  },
+  "author": "Andy Candy",
+  "license": "ISC",
+  "dependencies": {
+    "prometheus-query": "^3.0.0",
+    "yargs": "^16.2.0"
+  },
+  "devDependencies": {
+    "@types/yargs": "^16.0.0",
+    "nodemon": "^2.0.7",
+    "parcel": "^2.0.0-beta.2",
+    "typescript": "^4.1.3"
+  }
+}
