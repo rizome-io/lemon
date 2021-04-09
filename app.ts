@@ -1,5 +1,5 @@
-import { listen, ServerArgs, ServerConf } from './server'
-import { PromConf, prometheus } from './metrics'
+import { listen, ServerArgs } from './server'
+import { buildMetrics, PromConf } from './metrics'
 import { requestListener } from './routes'
 
 export type AppConf = {
@@ -10,7 +10,8 @@ export const app = (conf: AppConf) => {
 
   listen({
     ...conf.server,
-    requestListener: requestListener(prometheus(conf.prometheus))
+    requestListener: requestListener(buildMetrics(conf.prometheus))
+
   })
 
   }

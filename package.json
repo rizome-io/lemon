@@ -5,7 +5,7 @@
   "main": "dist/lemon.js",
   "scripts": {
     "build": "parcel build --no-scope-hoist index.js",
-    "develop": "nodemon",
+    "develop": "nodemon index.ts --prometheus=http://192.168.1.178:9090 -p=3002 -h=0.0.0.0",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "targets": {
@@ -27,6 +27,7 @@
     "@types/yargs": "^16.0.0",
     "nodemon": "^2.0.7",
     "parcel": "^2.0.0-beta.2",
+    "ts-node": "^9.1.1",
     "typescript": "^4.1.3"
   }
 }

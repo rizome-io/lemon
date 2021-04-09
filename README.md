@@ -32,6 +32,7 @@ Options:
 ```
 
 ## TODO
+- [ ] cache
 - [ ] tests
 - [ ] nix bundle
 - [ ] endpoint configuration

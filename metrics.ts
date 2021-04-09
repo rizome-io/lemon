@@ -1,4 +1,4 @@
-import { PrometheusDriver } from 'prometheus-query'
+import { PrometheusDriver, QueryResult } from 'prometheus-query'
 
 export type PromConf = {
   url: string,
@@ -9,38 +9,84 @@ type Query = () => Promise<void | any[][]>
 export type PromQuery = {
   epoch: Query,
   peers: Query,
+  processor: Query,
 }
 
-export const prometheus = ({url, path}: PromConf) => {
-  const pd = new PrometheusDriver({
-    endpoint: url,
-    baseURL: path,
-  });
-
-  // TODO: no-any
-  const getLabel = a => a.labels.job
-
-  const epoch = () => {
-    return pd.instantQuery('cardano_node_metrics_epoch_int')
-      .then((res) => res.result.map(r => [getLabel(r.metric), r.value ]))
-      .catch(console.log)
+type LabeledRes = {
+  labels: {
+    job: string
   }
+}
+const isLabeledRes = ( a: unknown): a is LabeledRes =>
+  (!!a
+    || typeof a == 'object'
+    || ( 'labels' in (a as LabeledRes) ) || typeof (a as LabeledRes).labels == 'object'
+    || ( 'job' in (a as LabeledRes).labels) || typeof (a as LabeledRes).labels.job == 'string')
 
-  const peers = () => {
-    const q = 'cardano_node_metrics_connectedPeers_int'
-    const start =new Date().getTime() - 24 * 60 * 60 * 1000
+  const getLabel = ( a: unknown ) => {
+    if (!isLabeledRes(a)) return 'unknown'
+    return a.labels.job
+  }
+  const processQueryRes = (res: QueryResult): MetricRes =>
+        res.result.map(r => [getLabel(r.metric), r.values as unknown])
+
+  const getRangeParams = () => {
+    const start = new Date().getTime() - 24 * 60 * 60 * 1000
     const end = new Date()
     const step = 6 * 60 * 60
 
-    return pd.rangeQuery(q, start, end, step)
-      .then((res) =>
-        res.result.map(r => [getLabel(r.metric), r.values])
-           )
-      .catch(console.log)
+    return [ start, end, step ] as const
   }
 
-  return {
-    epoch,
-    peers,
-  }
+export const enum Metric {
+  peers = 'peers',
+  proc = 'proc',
+  mem = 'mem',
+  netin = 'netin',
+  netout = 'netout'
+}
+
+type MetKey = {
+  peers: 'peers',
+  proc: 'proc',
+  mem: 'mem',
+  netin: 'netin',
+  netout: 'netout'
+}
+
+type MetricKey = keyof MetKey
+
+const ranges: [MetricKey, string][] = [
+  [ Metric.peers,   'cardano_node_metrics_connectedPeers_int' ],
+  [ Metric.proc,    '100 - ( avg by (job) (rate(node_cpu_seconds_total{mode="idle"}[1h])) * 100)' ],
+  [ Metric.mem,     'rts_gc_current_bytes_used/(1024*1024)' ],
+  [ Metric.netin,   'avg by (job) (rate(node_network_receive_bytes_total[6h])*8)' ],
+  [ Metric.netout,  'avg by (job) (rate(node_network_transmit_bytes_total[6h])*8)' ],
+]
+
+const mons = (pd: PrometheusDriver) => {
+  const rangeQ = (q: string) =>
+    pd.rangeQuery(q, ...getRangeParams())
+      .then(processQueryRes)
+      .catch(e => {
+        console.error(e)
+        return [['', null]] as MetricRes
+      }
+      )
+
+  return ranges.map(( [qname, query] ) => {
+    const queryAct = () => rangeQ(query)
+    return [qname, queryAct] as const
+  })
+}
+
+type MetricLabel = string
+type MetricRes = [MetricLabel, unknown][]
+export type MetricPromises = Array<readonly [MetricKey, () => Promise<MetricRes>]>
+export const buildMetrics = ({url, path}: PromConf): MetricPromises => {
+  const pd = new PrometheusDriver({
+    endpoint: url,
+    baseURL: path,
+  })
+  return mons(pd)
 }
