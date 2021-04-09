@@ -30,14 +30,6 @@ const isLabeledRes = ( a: unknown): a is LabeledRes =>
   const processQueryRes = (res: QueryResult): MetricRes =>
         res.result.map(r => [getLabel(r.metric), r.values as unknown])
 
-  const getRangeParams = () => {
-    const start = new Date().getTime() - 24 * 60 * 60 * 1000
-    const end = new Date()
-    const step = 6 * 60 * 60
-
-    return [ start, end, step ] as const
-  }
-
 export const enum Metric {
   peers = 'peers',
   proc = 'proc',
@@ -64,9 +56,15 @@ const ranges: [MetricKey, string][] = [
   [ Metric.netout,  'avg by (job) (rate(node_network_transmit_bytes_total[6h])*8)' ],
 ]
 
+type RangeParam = [
+  start: Date | number,
+  end: Date | number,
+  step: number,
+]
+
 const mons = (pd: PrometheusDriver) => {
-  const rangeQ = (q: string) =>
-    pd.rangeQuery(q, ...getRangeParams())
+  const rangeQ = (q: string, r: RangeParam) =>
+    pd.rangeQuery(q, ...r)
       .then(processQueryRes)
       .catch(e => {
         console.error(e)
@@ -75,14 +73,14 @@ const mons = (pd: PrometheusDriver) => {
       )
 
   return ranges.map(( [qname, query] ) => {
-    const queryAct = () => rangeQ(query)
+    const queryAct = (range: RangeParam) => rangeQ(query, range)
     return [qname, queryAct] as const
   })
 }
 
 type MetricLabel = string
 type MetricRes = [MetricLabel, unknown][]
-export type MetricPromises = Array<readonly [MetricKey, () => Promise<MetricRes>]>
+export type MetricPromises = Array<readonly [MetricKey, (r: RangeParam) => Promise<MetricRes>]>
 export const buildMetrics = ({url, path}: PromConf): MetricPromises => {
   const pd = new PrometheusDriver({
     endpoint: url,
